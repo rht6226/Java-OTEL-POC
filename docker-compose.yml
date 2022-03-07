@@ -1,0 +1,68 @@
+version: "3.1"
+
+services:
+
+  app:
+    image: otel-petclinic:latest
+    container_name: petclinic-app
+    depends_on:
+      - mysql
+      - otel-server
+    environment:
+      - OTEL_TRACES_EXPORTER=none
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-server:55680
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=petclinic-app
+    ports:
+      - 8080:8080
+
+  mysql:
+    image: mysql:5.7
+    container_name: sql-db
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_ALLOW_EMPTY_PASSWORD=true
+      - MYSQL_USER=petclinic
+      - MYSQL_PASSWORD=petclinic
+      - MYSQL_DATABASE=petclinic
+    volumes:
+      - "./conf.d:/etc/mysql/conf.d:ro"
+
+  otel-server:
+    image: otel/opentelemetry-collector
+    container_name: otel-server
+    command: --config /otel/collector.yaml
+    volumes:
+      - ./otel:/otel
+    ports:
+      - "13133:13133" # health check extension
+      - "55679:55679" # zpages extension
+      - "55680:55680" # otlp exporter endpoint grpc
+      - "55681:55681" # otle exporter endpoint http
+      - "8888:8888"
+      - "8889:8889" #
+    depends_on:
+      - prometheus
+    restart: always
+
+  # otelcol:
+  #   image: otel/otelcol:v0.36.0-amd64
+  #   container_name: otelcol
+  #   ports:
+  #     - "4317:4317"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./otel/:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090

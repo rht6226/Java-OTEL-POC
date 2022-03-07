@@ -1,0 +1,13 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['0.0.0.0:8081']
+  - job_name: otel-server 
+    metrics_path: /
+    static_configs:
+      - targets:
+        - 0.0.0.0:8889
